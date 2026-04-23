@@ -13,6 +13,13 @@ from youtube_transcript_api import (
 
 _VIDEO_ID_RE = re.compile(r"(?:v=|/shorts/|/embed/|youtu\.be/)([A-Za-z0-9_-]{11})")
 
+# YouTube aggressively blocks the default `web` player_client on datacenter
+# IPs (HF Spaces, etc.) — the symptom is [SSL: UNEXPECTED_EOF_WHILE_READING]
+# mid-handshake. Safari / iOS / tv_embedded clients are challenged far less.
+_YTDLP_EXTRACTOR_ARGS = {
+    "youtube": {"player_client": ["web_safari", "ios", "tv_embedded", "web"]},
+}
+
 
 def extract_video_id(url: str) -> str:
     m = _VIDEO_ID_RE.search(url)
@@ -68,7 +75,12 @@ async def fetch_metadata(url: str) -> VideoMeta:
         import yt_dlp
 
         with yt_dlp.YoutubeDL(
-            {"quiet": True, "no_warnings": True, "skip_download": True}
+            {
+                "quiet": True,
+                "no_warnings": True,
+                "skip_download": True,
+                "extractor_args": _YTDLP_EXTRACTOR_ARGS,
+            }
         ) as ydl:
             info = ydl.extract_info(url, download=False)
         return VideoMeta(
@@ -96,6 +108,7 @@ async def download_video(url: str, out_dir: Path) -> Path:
             "format": "worst[ext=mp4]/worst",
             "outtmpl": out_tmpl,
             "noplaylist": True,
+            "extractor_args": _YTDLP_EXTRACTOR_ARGS,
         }
         with yt_dlp.YoutubeDL(opts) as ydl:
             info = ydl.extract_info(url, download=True)
