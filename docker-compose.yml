@@ -1,0 +1,29 @@
+services:
+  genai:
+    build: ./genai
+    environment:
+      MAX_CONCURRENT_JOBS: ${MAX_CONCURRENT_JOBS:-2}
+      MAX_FRAMES: ${MAX_FRAMES:-48}
+      RATE_LIMIT_PER_MIN: ${RATE_LIMIT_PER_MIN:-10}
+      FRAME_DIR: /app/frames
+    volumes:
+      - frames:/app/frames
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # dev-mode container; Vite dev server proxies /api and /frames to
+        # the genai service at the docker-network hostname.
+        BACKEND_URL: http://genai:8000
+    environment:
+      BACKEND_URL: http://genai:8000
+    ports:
+      - "5173:5173"
+    depends_on:
+      - genai
+
+volumes:
+  frames:

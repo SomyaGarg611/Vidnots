@@ -1,0 +1,11 @@
+{
+  "name": "vidnots",
+  "private": true,
+  "version": "0.2.0",
+  "packageManager": "pnpm@9.0.0",
+  "scripts": {
+    "dev:frontend": "pnpm --filter frontend dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck"
+  }
+}
