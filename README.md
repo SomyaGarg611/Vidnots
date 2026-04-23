@@ -14,6 +14,10 @@ Paste a YouTube URL → get exhaustive Markdown notes that cover **everything sp
 
 Bring your own key (Gemini / Claude / OpenAI). Nothing is persisted server-side.
 
+> **About the hosted demo** — the live version at **[huggingface.co/spaces/somya-garg/Vidnots](https://huggingface.co/spaces/somya-garg/Vidnots)** produces **text-only notes**. Embedded screenshots are not available there because YouTube actively blocks video downloads from datacenter IPs — a universal 2026 anti-scraping measure that affects every free cloud host (HF Spaces, Fly.io, Render, etc.), so `yt-dlp` cannot fetch frames from inside the Space container. The notes themselves are still generated end-to-end via the multi-agent pipeline (Transcriber → Visual-Analyst → OCR-Extractor → Synthesizer), they just arrive without embedded images.
+>
+> **For the full experience** — live frame extraction, embedded screenshots, OCR of slides/code/equations — [run the project locally](#running-locally). `yt-dlp` traffic then originates from your home ISP rather than a blocklisted cloud range and everything works end-to-end. A cookies-based workaround to enable frames on the hosted demo is documented in [DEPLOY.md §7](DEPLOY.md).
+
 ## Features
 
 - **Multi-agent LangGraph pipeline** — Transcriber, Visual-Analyst, OCR-Extractor, and a tool-using Synthesizer, with real parallel fan-out so long videos get genuine wall-clock wins.
