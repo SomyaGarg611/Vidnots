@@ -85,27 +85,6 @@ Requires **Python 3.11+**, **Node 20+**, and **ffmpeg** (`brew install ffmpeg` o
 
 Or `docker compose up` if you have Docker — brings up both services on a shared network.
 
-## Deploy
-
-The repo root `Dockerfile` builds a single container that:
-
-1. Compiles the Vite SPA in a Node build stage.
-2. Installs `ffmpeg` + pip deps in a Python runtime stage.
-3. Copies the built SPA into the Python image so FastAPI serves the API and the frontend from one origin.
-
-For **Hugging Face Spaces** (free, always-on, 16 GB / 2 vCPU):
-
-```bash
-git init
-git add .
-git commit -m "initial deploy"
-# create a Space at https://huggingface.co/new-space — SDK: Docker
-git remote add space https://huggingface.co/spaces/<you>/vidnots
-git push space main
-```
-
-First build is 5–8 min (ffmpeg + npm ci + pip install); subsequent pushes are fast thanks to Docker layer caching. Your app lives at `https://<you>-vidnots.hf.space`.
-
 ## Environment variables
 
 All optional. No secrets ever live in env — every provider key is BYOK per request.
