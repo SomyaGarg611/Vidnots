@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import re
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -19,6 +21,42 @@ _VIDEO_ID_RE = re.compile(r"(?:v=|/shorts/|/embed/|youtu\.be/)([A-Za-z0-9_-]{11}
 _YTDLP_EXTRACTOR_ARGS = {
     "youtube": {"player_client": ["web_safari", "ios", "tv_embedded", "web"]},
 }
+
+# Cookies path is resolved lazily so changes to env (e.g., HF Space Secret
+# updates on restart) take effect without import-time side effects.
+_cookies_cache: str | None = None
+
+
+def _cookies_file() -> str | None:
+    """If YT_COOKIES_NETSCAPE is set, materialize it to a 0600 tempfile and
+    return the path — yt-dlp uses this for anti-bot / age-gate / sign-in
+    videos. Returns None when the env var is absent."""
+    global _cookies_cache
+    if _cookies_cache is not None:
+        return _cookies_cache or None
+
+    raw = os.environ.get("YT_COOKIES_NETSCAPE", "").strip()
+    if not raw:
+        _cookies_cache = ""
+        return None
+
+    fd, path = tempfile.mkstemp(prefix="ytcookies_", suffix=".txt")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            # Normalize line endings; Netscape format requires \n.
+            f.write(raw.replace("\r\n", "\n").replace("\r", "\n"))
+            if not raw.endswith("\n"):
+                f.write("\n")
+        os.chmod(path, 0o600)
+    except Exception:
+        try:
+            os.unlink(path)
+        except OSError:
+            pass
+        raise
+
+    _cookies_cache = path
+    return path
 
 
 def extract_video_id(url: str) -> str:
@@ -74,14 +112,16 @@ async def fetch_metadata(url: str) -> VideoMeta:
     def _sync() -> VideoMeta:
         import yt_dlp
 
-        with yt_dlp.YoutubeDL(
-            {
-                "quiet": True,
-                "no_warnings": True,
-                "skip_download": True,
-                "extractor_args": _YTDLP_EXTRACTOR_ARGS,
-            }
-        ) as ydl:
+        opts: dict = {
+            "quiet": True,
+            "no_warnings": True,
+            "skip_download": True,
+            "extractor_args": _YTDLP_EXTRACTOR_ARGS,
+        }
+        cookies = _cookies_file()
+        if cookies:
+            opts["cookiefile"] = cookies
+        with yt_dlp.YoutubeDL(opts) as ydl:
             info = ydl.extract_info(url, download=False)
         return VideoMeta(
             duration_s=float(info.get("duration") or 0.0),
@@ -102,7 +142,7 @@ async def download_video(url: str, out_dir: Path) -> Path:
         import yt_dlp
 
         out_tmpl = str(out_dir / "%(id)s.%(ext)s")
-        opts = {
+        opts: dict = {
             "quiet": True,
             "no_warnings": True,
             "format": "worst[ext=mp4]/worst",
@@ -110,6 +150,9 @@ async def download_video(url: str, out_dir: Path) -> Path:
             "noplaylist": True,
             "extractor_args": _YTDLP_EXTRACTOR_ARGS,
         }
+        cookies = _cookies_file()
+        if cookies:
+            opts["cookiefile"] = cookies
         with yt_dlp.YoutubeDL(opts) as ydl:
             info = ydl.extract_info(url, download=True)
             return Path(ydl.prepare_filename(info))
