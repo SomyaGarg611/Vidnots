@@ -116,6 +116,10 @@ async def fetch_metadata(url: str) -> VideoMeta:
             "quiet": True,
             "no_warnings": True,
             "skip_download": True,
+            # Guard against URLs that carry a `list=` param — yt-dlp will
+            # otherwise try to enumerate the whole playlist and hang.
+            "noplaylist": True,
+            "retries": 5,
             "extractor_args": _YTDLP_EXTRACTOR_ARGS,
         }
         cookies = _cookies_file()
@@ -148,6 +152,8 @@ async def download_video(url: str, out_dir: Path) -> Path:
             "format": "worst[ext=mp4]/worst",
             "outtmpl": out_tmpl,
             "noplaylist": True,
+            "retries": 5,
+            "fragment_retries": 5,
             "extractor_args": _YTDLP_EXTRACTOR_ARGS,
         }
         cookies = _cookies_file()
